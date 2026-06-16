@@ -2,7 +2,7 @@ import re
 
 def isCpfValid(cpf):
 
-    # Check if type is str
+    # Check if type is str <-- olha o gpt blud right here
     if not isinstance(cpf,str):
         return False
 
