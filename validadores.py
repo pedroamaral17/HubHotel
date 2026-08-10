@@ -1,3 +1,4 @@
+from datetime import datetime
 import re
 
 def isCpfValid(cpf):
@@ -101,3 +102,32 @@ def isCnpjValid(cnpj):
     if cpf[-2:] == "%s%s" % (firstVerifyingDigit,secondVerifyingDigit):
         return True
     return False
+
+def isDdnValid(ddn):
+    if ddn == "":
+        return False
+
+    try:
+        datetime.strptime(ddn, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
+def isEmailValid(email):
+    if email == "":
+        print("Inválido, tente novamente.")
+    regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return bool(re.match(regex, email))
+
+
+
+def isTelValid(telefone):
+    telefone = re.sub(r"\D", "", telefone)
+
+    valido = (
+        len(telefone) in (10, 11)
+        and len(set(telefone)) > 1
+    )
+
+    return valido
