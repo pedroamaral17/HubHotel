@@ -1,5 +1,6 @@
 from datetime import datetime
 import re
+from integracao import integracao
 from validadores import isCpfValid, isDdnValid, isEmailValid, isTelValid
 
 hospede = []
@@ -54,8 +55,12 @@ def cadastrar_usuario():
 
     try:
         print(usuario)
-        response = supabase.table("hospede").insert(usuario).execute()
+
+        response = integracao.table("hospede").insert(usuario).execute()
+
         print("Usuário cadastrado com sucesso!")
+        print(response.data)
+
     except Exception as e:
         print(f"Erro ao salvar: {e}")
 
