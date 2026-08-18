@@ -1,0 +1,48 @@
+Guia de como vai funcionar esse tramboio 
+-----------------------------------------
+
+fluxo de como vai funcionar o code:
+
+Cliente (PF ou PJ) se identifica
+        ↓
+Cadastro novo  OU  Login (recupera cadastro existente)
+        ↓
+Busca hotel → tipo de quarto → quarto disponível
+        ↓
+Reserva (usando o id_hospede já conhecido)
+        ↓
+Pagamento
+
+==========================================================
+==========================================================
+
+O que ta pronto no hotelres.py: 
+a parte de "cadastro novo | recupera cadastro existente" 
+(seja por CPF/CNPJ, sem senha ainda), a busca em cascata 
+(hotel → tipo → quarto), e a criação da reserva e do pagamento.
+
+oq ainda nao existe:
+uma area/sistema de login (com senha) de verdade.
+Apliquei apenas para ele reaproveitar o cadastro se o 
+CPF / CPNJ existir. qualquer um que souber, o documento """loga"""
+como se fosse aquele hóspede.
+
+==========================================================
+==========================================================
+
+reúni aqui uns comandos que sei e usei no code py 
+e achei que seria interessante 
+passar pra voces:
+
+.table("nome")  -  Escolhe em qual tabela a operação vai acontecer
+.select("*")  -  Pede pra trazer todas as colunas da linha encontrada
+.select("coluna")  -  Pede só uma (ou algumas) colunas específicas
+.eq("coluna", valor) Filtra:  só traz linhas onde a coluna é exatamente igual ao valor
+.ilike("coluna", "%valor%")  -  	Filtra por trecho do texto, ignorando maiúsculas/minúsculas
+.in_("coluna", lista)	Filtra:  traz linhas onde a coluna bate com qualquer item da lista
+.or_("cond1,cond2")  -  Combina duas condições como "OU" (basta uma ser verdadeira)
+.insert({...})  -  Cria uma nova linha na tabela com os dados do dicionário
+.update({...})  -  Altera colunas de uma linha já existente
+.execute()  -  Manda a operação montada acontecer de fato no Supabase
+.data  -  Pega o resultado devolvido (uma lista de dicionários)
+
