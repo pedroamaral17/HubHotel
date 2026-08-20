@@ -104,7 +104,7 @@ def IsSenhaValid(senha):
     return len(senha) >= 8
 
 
-def senha_hash(senha):
+def hash_senha(senha):
     salt = os.urandom(16)
     hash_gerado = hashlib.pbkdf2_hmac("sha256", senha.encode(), salt, 100000)
     return salt.hex() + ":" + hash_gerado.hex()
