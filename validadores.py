@@ -1,82 +1,112 @@
 from datetime import datetime
 import re
-import hashlib
-import os
-
 
 def isCpfValid(cpf):
-    if not isinstance(cpf, str):
+
+    # Check if type is str <-- olha o gpt blud right here
+    if not isinstance(cpf,str):
         return False
 
-    cpf = re.sub("[^0-9]", '', cpf)
-
-    # FIX: usar set() em vez da cadeia gigante de "or ==" — mais legível e fácil de manter
-    # correção com auxilio de IA
-    cpfs_invalidos = {str(n) * 11 for n in range(10)}
-    if cpf in cpfs_invalidos:
+    # Remove some unwanted characters
+    cpf = re.sub("[^0-9]",'',cpf)
+    
+    # Verify if CPF number is equal
+    if cpf=='00000000000' or cpf=='11111111111' or cpf=='22222222222' or cpf=='33333333333' or cpf=='44444444444' or cpf=='55555555555' or cpf=='66666666666' or cpf=='77777777777' or cpf=='88888888888' or cpf=='99999999999':
         return False
 
+    # Checks if string has 11 characters
     if len(cpf) != 11:
         return False
 
-    # FIX: soma/peso em vez de sum/weight (sum é builtin do Python)
-    # correção com auxilio de IA
-    soma = 0
-    peso = 10
+    sum = 0
+    weight = 10
+
+    """ Calculating the first cpf check digit. """
     for n in range(9):
-        soma = soma + int(cpf[n]) * peso
-        peso = peso - 1
+        sum = sum + int(cpf[n]) * weight
 
-    digito_verificador = 11 - soma % 11
-    primeiro_digito = 0 if digito_verificador > 9 else digito_verificador
+        # Decrement weight
+        weight = weight - 1
 
-    soma = 0
-    peso = 11
+    verifyingDigit = 11 -  sum % 11
+
+    if verifyingDigit > 9 :
+        firstVerifyingDigit = 0
+    else:
+        firstVerifyingDigit = verifyingDigit
+
+    """ Calculating the second check digit of cpf. """
+    sum = 0
+    weight = 11
     for n in range(10):
-        soma = soma + int(cpf[n]) * peso
-        peso = peso - 1
+        sum = sum + int(cpf[n]) * weight
 
-    digito_verificador = 11 - soma % 11
-    segundo_digito = 0 if digito_verificador > 9 else digito_verificador
+        # Decrement weight
+        weight = weight - 1
 
-    return cpf[-2:] == "%s%s" % (primeiro_digito, segundo_digito)
+    verifyingDigit = 11 -  sum % 11
+
+    if verifyingDigit > 9 :
+        secondVerifyingDigit = 0
+    else:
+        secondVerifyingDigit = verifyingDigit
+
+    if cpf[-2:] == "%s%s" % (firstVerifyingDigit,secondVerifyingDigit):
+        return True
+    return False
 
 
 def isCnpjValid(cnpj):
-    """ Se o CNPJ no formato brasileiro for válido, retorna True, senão False. """
-    if not isinstance(cnpj, str):
+    """ If cnpf in the Brazilian format is valid, it returns True, otherwise, it returns False. """
+
+    # Check if type is str
+    if not isinstance(cnpj,str):
         return False
 
-    # FIX: variável renomeada de "cpf" para "cnpj_limpo" — o nome antigo confundia
-    # com a função isCpfValid logo acima, mesmo sendo um CNPJ sendo tratado aqui
-    # correção com auxilio de IA
-    cnpj_limpo = re.sub("[^0-9]", '', cnpj)
+    # Remove some unwanted characters
+    cpf = re.sub("[^0-9]",'',cnpj)
 
-    if len(cnpj_limpo) != 14:
+    # Checks if string has 11 characters
+    if len(cpf) != 14:
         return False
 
-    soma = 0
-    peso = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    sum = 0
+    weight = [5,4,3,2,9,8,7,6,5,4,3,2]
+
+    """ Calculating the first cpf check digit. """
     for n in range(12):
-        soma = soma + int(cnpj_limpo[n]) * peso[n]
+        value =  int(cpf[n]) * weight[n]
+        sum = sum + value
 
-    digito_verificador = soma % 11
-    primeiro_digito = 0 if digito_verificador < 2 else 11 - digito_verificador
 
-    soma = 0
-    peso = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    verifyingDigit = sum % 11
+
+    if verifyingDigit < 2 :
+        firstVerifyingDigit = 0
+    else:
+        firstVerifyingDigit = 11 - verifyingDigit
+
+    """ Calculating the second check digit of cpf. """
+    sum = 0
+    weight = [6,5,4,3,2,9,8,7,6,5,4,3,2]
     for n in range(13):
-        soma = soma + int(cnpj_limpo[n]) * peso[n]
+        sum = sum + int(cpf[n]) * weight[n]
 
-    digito_verificador = soma % 11
-    segundo_digito = 0 if digito_verificador < 2 else 11 - digito_verificador
+    verifyingDigit = sum % 11
 
-    return cnpj_limpo[-2:] == "%s%s" % (primeiro_digito, segundo_digito)
+    if verifyingDigit < 2 :
+        secondVerifyingDigit = 0
+    else:
+        secondVerifyingDigit = 11 - verifyingDigit
 
+    if cpf[-2:] == "%s%s" % (firstVerifyingDigit,secondVerifyingDigit):
+        return True
+    return False
 
 def isDdnValid(ddn):
     if ddn == "":
         return False
+
     try:
         datetime.strptime(ddn, "%Y-%m-%d")
         return True
@@ -85,34 +115,19 @@ def isDdnValid(ddn):
 
 
 def isEmailValid(email):
-    # FIX: antes só dava print e continuava pro regex (que ia retornar False mesmo
-    # com "" — funcionava por acaso). Agora retorna direto, sem side-effect de print
-    # dentro de uma função que deveria só validar.
-    # correção com auxilio de IA
     if email == "":
-        return False
+        print("Inválido, tente novamente.")
     regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
     return bool(re.match(regex, email))
 
 
+
 def isTelValid(telefone):
     telefone = re.sub(r"\D", "", telefone)
-    return len(telefone) in (10, 11) and len(set(telefone)) > 1
 
+    valido = (
+        len(telefone) in (10, 11)
+        and len(set(telefone)) > 1
+    )
 
-def IsSenhaValid(senha):
-    return len(senha) >= 8
-
-
-def hash_senha(senha):
-    salt = os.urandom(16)
-    hash_gerado = hashlib.pbkdf2_hmac("sha256", senha.encode(), salt, 100000)
-    return salt.hex() + ":" + hash_gerado.hex()
-
-
-def checar_senha(senha_digitada, hash_salvo):
-    salt_hex, hash_hex = hash_salvo.split(":")
-    salt = bytes.fromhex(salt_hex)
-    hash_esperado = bytes.fromhex(hash_hex)
-    hash_teste = hashlib.pbkdf2_hmac("sha256", senha_digitada.encode(), salt, 100000)
-    return hash_teste == hash_esperado
+    return valido
