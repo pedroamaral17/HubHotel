@@ -55,16 +55,10 @@ def cadastrar_usuario():
         "data_nascimento": ddn,
         "email": email,
         "fone": telefone,
-        # FIX: senha agora vai com hash (PBKDF2 + salt) pro banco,
-        # nunca mais em texto puro
-        # correção com auxilio de IA
         "senha_hash": hash_senha(senha),
     }
 
     try:
-        # FIX: removido o print(usuario) — imprimia CPF, e-mail e a senha
-        # (mesmo com hash, não há motivo pra jogar isso no console/log)
-        # correção com auxilio de IA
         response = integracao.table("hospede").insert(usuario).execute()
         print("Usuário cadastrado com sucesso!")
     except Exception as e:
@@ -77,9 +71,7 @@ print("=" * 20)
 
 while True:
     print("1 - Cadastrar conta\n2 - Login\n3 - Sair")
-
-    # FIX: int(input()) quebrava com entrada não-numérica; agora valida antes
-    # correção com auxilio de IA
+    
     opcao_str = input("Digite a opção desejada: ").strip()
     if not opcao_str.isdigit():
         print("Opção inválida, digite um número.")
