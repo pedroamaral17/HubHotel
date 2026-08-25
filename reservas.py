@@ -9,7 +9,7 @@ from supabase import create_client, Client
 
 def buscar_hotel(nome_busca: str, endereco_busca: str):
     resposta = (
-        supabase.table("hotel")
+        integracao.table("hotel")
         .select("*")
         .ilike("nome", f"%{nome_busca}%")
         .ilike("endereco", f"%{endereco_busca}%")
@@ -24,7 +24,7 @@ def buscar_hotel(nome_busca: str, endereco_busca: str):
 
 def buscar_tipos_quarto(id_hotel: int):
     resposta = (
-        supabase.table("tipo_quarto")
+        integracao.table("tipo_quarto")
         .select("*")
         .eq("id_hotel", id_hotel)
         .execute()
@@ -35,7 +35,7 @@ def buscar_tipos_quarto(id_hotel: int):
 def buscar_amenidades_do_tipo(id_tipo_quarto: int):
     # A ligação só guarda os IDs, então busco os nomes depois
     resposta = (
-        supabase.table("tipo_quarto_amenidade")
+        integracao.table("tipo_quarto_amenidade")
         .select("id_amenidade")
         .eq("id_tipo_quarto", id_tipo_quarto)
         .execute()
@@ -46,7 +46,7 @@ def buscar_amenidades_do_tipo(id_tipo_quarto: int):
         return []
 
     resposta_amenidades = (
-        supabase.table("amenidade_do_quarto")
+        integracao.table("amenidade_do_quarto")
         .select("nome_amenidade")
         .in_("id_amenidade", ids_amenidades)
         .execute()
@@ -61,7 +61,7 @@ def buscar_amenidades_do_tipo(id_tipo_quarto: int):
 def buscar_id_status(palavra_chave: str):
     # Busco o status por trecho do nome (ex: "dispon" acha "Disponível")
     resposta = (
-        supabase.table("status_quarto")
+        integracao.table("status_quarto")
         .select("id_status")
         .ilike("nome_status", f"%{palavra_chave}%")
         .execute()
@@ -75,7 +75,7 @@ def buscar_quartos_disponiveis(id_tipo_quarto: int):
     id_status_disponivel = buscar_id_status("dispon")
 
     resposta = (
-        supabase.table("quarto")
+        integracao.table("quarto")
         .select("*")
         .eq("id_tipo_quarto", id_tipo_quarto)
         .eq("id_status", id_status_disponivel)
@@ -86,7 +86,7 @@ def buscar_quartos_disponiveis(id_tipo_quarto: int):
 
 def atualizar_status_quarto(id_quarto: int, id_status: int):
     (
-        supabase.table("quarto")
+        integracao.table("quarto")
         .update({"id_status": id_status})
         .eq("id_quarto", id_quarto)
         .execute()
@@ -100,7 +100,7 @@ def atualizar_status_quarto(id_quarto: int, id_status: int):
 def buscar_hospede_por_documento(documento: str):
     # Procuro tanto em cpf quanto em cnpj, não sei de antemão qual é
     resposta = (
-        supabase.table("hospede")
+        integracao.table("hospede")
         .select("*")
         .or_(f"cpf.eq.{documento},cnpj.eq.{documento}")
         .execute()
@@ -112,7 +112,7 @@ def buscar_hospede_por_documento(documento: str):
 
 def cadastrar_hospede_pf(nome: str, cpf: str, email: str, fone: str, data_nascimento: str):
     resposta = (
-        supabase.table("hospede")
+        integracao.table("hospede")
         .insert({
             "nome": nome,
             "cpf": cpf,
@@ -129,7 +129,7 @@ def cadastrar_hospede_pf(nome: str, cpf: str, email: str, fone: str, data_nascim
 
 def cadastrar_hospede_pj(razao_social: str, cnpj: str, email: str, fone: str):
     resposta = (
-        supabase.table("hospede")
+        integracao.table("hospede")
         .insert({
             "nome": razao_social,
             "cpf": None,
@@ -149,7 +149,7 @@ def cadastrar_hospede_pj(razao_social: str, cnpj: str, email: str, fone: str):
 
 def criar_reserva(id_hospede: int, id_quarto: int, checkin: str, checkout: str, valor_total: float):
     resposta = (
-        supabase.table("reserva")
+        integracao.table("reserva")
         .insert({
             "hospede": id_hospede,
             "quarto": id_quarto,
@@ -165,7 +165,7 @@ def criar_reserva(id_hospede: int, id_quarto: int, checkin: str, checkout: str, 
 
 def criar_pagamento(numero_reserva: int, valor_total: float, formato: str):
     resposta = (
-        supabase.table("pagamento")
+        integracao.table("pagamento")
         .insert({
             "reserva": numero_reserva,
             "valor_total": valor_total,
