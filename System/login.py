@@ -1,5 +1,5 @@
-from integracao import integracao
-from validadores import checar_senha
+from System.integracao import integracao
+from System.validadores import checar_senha
 
 usuario_logado = None
 

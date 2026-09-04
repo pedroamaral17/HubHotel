@@ -1,7 +1,6 @@
 # IMPORTS
-from integracao import integracao
+from System.integracao import integracao
 from datetime import date
-from supabase import create_client, Client
 
 # ============================================================
 #                       1. BUSCAR HOTEL
@@ -94,57 +93,7 @@ def atualizar_status_quarto(id_quarto: int, id_status: int):
 
 
 # ============================================================
-#        4. HÓSPEDE (buscar por CPF ou cadastrar novo)
-# ============================================================
-
-def buscar_hospede_por_documento(documento: str):
-    # Procuro tanto em cpf quanto em cnpj, não sei de antemão qual é
-    resposta = (
-        integracao.table("hospede")
-        .select("*")
-        .or_(f"cpf.eq.{documento},cnpj.eq.{documento}")
-        .execute()
-    )
-    if resposta.data:
-        return resposta.data[0]
-    return None
-
-
-def cadastrar_hospede_pf(nome: str, cpf: str, email: str, fone: str, data_nascimento: str):
-    resposta = (
-        integracao.table("hospede")
-        .insert({
-            "nome": nome,
-            "cpf": cpf,
-            "cnpj": None,
-            "tipo_pessoa": "PF",
-            "email": email,
-            "fone": fone,
-            "data_nascimento": data_nascimento,
-        })
-        .execute()
-    )
-    return resposta.data[0]
-
-
-def cadastrar_hospede_pj(razao_social: str, cnpj: str, email: str, fone: str):
-    resposta = (
-        integracao.table("hospede")
-        .insert({
-            "nome": razao_social,
-            "cpf": None,
-            "cnpj": cnpj,
-            "tipo_pessoa": "PJ",
-            "email": email,
-            "fone": fone,
-        })
-        .execute()
-    )
-    return resposta.data[0]
-
-
-# ============================================================
-#                    5. RESERVA E PAGAMENTO
+#                    4. RESERVA E PAGAMENTO
 # ============================================================
 
 def criar_reserva(id_hospede: int, id_quarto: int, checkin: str, checkout: str, valor_total: float):
@@ -181,7 +130,7 @@ def criar_pagamento(numero_reserva: int, valor_total: float, formato: str):
 #                      FLUXO PRINCIPAL
 # ============================================================
 
-def main():
+def iniciar_reserva(hospede):
     # -- 1. Buscar hotel
     nome = input("Nome do hotel: ")
     endereco = input("Endereço: ")
@@ -198,7 +147,7 @@ def main():
     escolha = int(input("Escolha o hotel (número da lista): "))
     hotel_escolhido = hoteis[escolha]
 
-    # -- 2. Listar tipos de quarto + amenidades
+    # -- 3. Listar tipos de quarto + amenidades
     tipos = buscar_tipos_quarto(hotel_escolhido["id_hotel"])
 
     if not tipos:
@@ -213,7 +162,7 @@ def main():
     escolha = int(input("Escolha o tipo de quarto (número da lista): "))
     tipo_escolhido = tipos[escolha]
 
-    # -- 3. Quartos disponíveis
+    # -- 4. Quartos disponíveis
     quartos = buscar_quartos_disponiveis(tipo_escolhido["id_tipo_quarto"])
 
     if not quartos:
@@ -226,26 +175,7 @@ def main():
     escolha = int(input("Escolha o quarto (número da lista): "))
     quarto_escolhido = quartos[escolha]
 
-    # -- 4. Hóspede: PF ou PJ, busca por documento, cadastra se não existir
-    tipo_pessoa = input("Pessoa física ou jurídica? (PF/PJ): ").strip().upper()
-    documento = input("CPF: " if tipo_pessoa == "PF" else "CNPJ: ")
-
-    hospede = buscar_hospede_por_documento(documento)
-
-    if hospede is None:
-        print("Hóspede não encontrado, vamos cadastrar.")
-        email = input("Email: ")
-        fone = input("Telefone: ")
-
-        if tipo_pessoa == "PF":
-            nome_hospede = input("Nome: ")
-            data_nascimento = input("Data de nascimento (AAAA-MM-DD): ")
-            hospede = cadastrar_hospede_pf(nome_hospede, documento, email, fone, data_nascimento)
-        else:
-            razao_social = input("Razão social: ")
-            hospede = cadastrar_hospede_pj(razao_social, documento, email, fone)
-
-    # -- 5. Checkin, checkout e valor total
+    # -- 5. Checkin, checkout e valor tt
     checkin_str = input("Data de check-in (AAAA-MM-DD): ")
     checkout_str = input("Data de check-out (AAAA-MM-DD): ")
 
@@ -272,7 +202,7 @@ def main():
     if id_status_reservado:
         atualizar_status_quarto(quarto_escolhido["id_quarto"], id_status_reservado)
 
-    # -- 7. Pagamento
+    # -- 7. Pgto
     formato = input("Forma de pagamento (pix, cartao, dinheiro): ")
     pagamento = criar_pagamento(reserva["numero"], valor_total, formato)
 
@@ -281,7 +211,3 @@ def main():
     print(f"Número da reserva: {reserva['numero']}")
     print(f"Valor total: R$ {valor_total}")
     print(f"Pagamento registrado: {pagamento['id_pagamento']} ({formato})")
-
-
-if __name__ == "__main__":
-    main()
