@@ -130,6 +130,23 @@ def criar_pagamento(numero_reserva: int, valor_total: float, formato: str):
 #                      FLUXO PRINCIPAL
 # ============================================================
 
+def _escolher_da_lista(lista, mensagem):
+    while True:
+        entrada = input(mensagem).strip()
+
+        if not entrada.isdigit():
+            print("Digite um número válido.")
+            continue
+
+        indice = int(entrada) - 1
+
+        if indice < 0 or indice >= len(lista):
+            print("Esse número não existe! Escolha um da lista acima.")
+            continue
+
+        return lista[indice]
+
+
 def iniciar_reserva(hospede):
     # -- 1. Buscar hotel
     nome = input("Nome do hotel: ")
@@ -142,10 +159,9 @@ def iniciar_reserva(hospede):
         return
 
     for i, hotel in enumerate(hoteis):
-        print(f"[{i}] {hotel['nome']} - {hotel['endereco']}")
+        print(f"[{i + 1}] {hotel['nome']} - {hotel['endereco']}")
 
-    escolha = int(input("Escolha o hotel (número da lista): "))
-    hotel_escolhido = hoteis[escolha]
+    hotel_escolhido = _escolher_da_lista(hoteis, "Escolha o hotel (número da lista): ")
 
     # -- 3. Listar tipos de quarto + amenidades
     tipos = buscar_tipos_quarto(hotel_escolhido["id_hotel"])
@@ -156,11 +172,10 @@ def iniciar_reserva(hospede):
 
     for i, tipo in enumerate(tipos):
         amenidades = buscar_amenidades_do_tipo(tipo["id_tipo_quarto"])
-        print(f"[{i}] {tipo['nome_tipo']} - R$ {tipo['preco_diaria']}/diária")
+        print(f"[{i + 1}] {tipo['nome_tipo']} - R$ {tipo['preco_diaria']}/diária")
         print(f"    Amenidades: {', '.join(amenidades) if amenidades else 'nenhuma'}")
 
-    escolha = int(input("Escolha o tipo de quarto (número da lista): "))
-    tipo_escolhido = tipos[escolha]
+    tipo_escolhido = _escolher_da_lista(tipos, "Escolha o tipo de quarto (número da lista): ")
 
     # -- 4. Quartos disponíveis
     quartos = buscar_quartos_disponiveis(tipo_escolhido["id_tipo_quarto"])
@@ -170,12 +185,11 @@ def iniciar_reserva(hospede):
         return
 
     for i, quarto in enumerate(quartos):
-        print(f"[{i}] Quarto {quarto['numero']}")
+        print(f"[{i + 1}] Quarto {quarto['numero']}")
 
-    escolha = int(input("Escolha o quarto (número da lista): "))
-    quarto_escolhido = quartos[escolha]
+    quarto_escolhido = _escolher_da_lista(quartos, "Escolha o quarto (número da lista): ")
 
-    # -- 5. Checkin, checkout e valor tt
+    # -- 5. Checkin, checkout e valor total
     checkin_str = input("Data de check-in (AAAA-MM-DD): ")
     checkout_str = input("Data de check-out (AAAA-MM-DD): ")
 
@@ -202,7 +216,7 @@ def iniciar_reserva(hospede):
     if id_status_reservado:
         atualizar_status_quarto(quarto_escolhido["id_quarto"], id_status_reservado)
 
-    # -- 7. Pgto
+    # -- 7. Pagamento
     formato = input("Forma de pagamento (pix, cartao, dinheiro): ")
     pagamento = criar_pagamento(reserva["numero"], valor_total, formato)
 

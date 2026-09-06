@@ -88,7 +88,7 @@ def cadastrar_pj():
     return _salvar_usuario(usuario)
 
 
-# ---- Campos em comum entre os PF e PJ ----
+# ---- Campos em comum entre PF e PJ ----
 
 def _pedir_email():
     while True:
@@ -113,6 +113,31 @@ def _pedir_senha():
             return senha
         print("Sua senha é muito curta, tente novamente.")
 
+# ---- Tradução/análise de erro para o usúario (cliente) -> 
+# código atualizado com auxilio de IA 
+
+def _traduzir_erro(e) -> str:
+    detalhe = str(e)
+
+    if "duplicate key" in detalhe or "unique constraint" in detalhe:
+        if "email" in detalhe:
+            return "Esse e-mail já está cadastrado. Tente fazer login."
+        if "cpf" in detalhe:
+            return "Esse CPF já está cadastrado. Tente fazer login."
+        if "cnpj" in detalhe:
+            return "Esse CNPJ já está cadastrado. Tente fazer login."
+        if "fone" in detalhe:
+            return "Esse telefone já está cadastrado."
+        return "Já existe um cadastro com esses dados."
+
+    if "null value" in detalhe or "not-null constraint" in detalhe:
+        return "Faltou preencher alguma informação obrigatória."
+
+    if "check constraint" in detalhe:
+        return "Algum dos dados informados não é válido."
+
+    return "Não foi possível concluir o cadastro. Tente novamente mais tarde."
+
 
 def _salvar_usuario(usuario: dict):
     try:
@@ -120,5 +145,5 @@ def _salvar_usuario(usuario: dict):
         print("Usuário cadastrado com sucesso!")
         return response.data[0]
     except Exception as e:
-        print(f"Erro ao salvar: {e}")
+        print(_traduzir_erro(e))
         return None
