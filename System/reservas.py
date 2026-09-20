@@ -26,7 +26,6 @@ def buscar_hotel(termo_busca: str):
         "buscar_hotel_aproximado", {"termo": termo_busca}
     ).execute()
     return resposta_aproximada.data
-    return resposta.data
 
 
 # ============================================================
@@ -168,6 +167,51 @@ def criar_pagamento(numero_reserva: int, valor_total: float, formato: str):
     return resposta.data[0]
 
 
+def buscar_reservas_do_hospede(id_hospede: int):
+    # Uso a sintaxe de "embed" do Supabase: como as foreign keys existem,
+    # ele já traz o quarto, o tipo de quarto e o hotel juntos, numa só chamada
+    resposta = (
+        integracao.table("reserva")
+        .select("numero, checkin, checkout, valor_total, status, quarto(numero, tipo_quarto(nome_tipo, hotel(nome)))")
+        .eq("hospede", id_hospede)
+        .order("checkin", desc=True)
+        .execute()
+    )
+    return resposta.data
+
+
+def cancelar_reserva(numero_reserva: int):
+    # Marca como inativa — automaticamente libera o quarto pro período,
+    # já que verificar_disponibilidade() só olha reservas com status = True
+    (
+        integracao.table("reserva")
+        .update({"status": False})
+        .eq("numero", numero_reserva)
+        .execute()
+    )
+
+
+def buscar_pagamentos_do_hospede(id_hospede: int):
+    reservas = (
+        integracao.table("reserva")
+        .select("numero")
+        .eq("hospede", id_hospede)
+        .execute()
+    )
+    numeros = [r["numero"] for r in reservas.data]
+
+    if not numeros:
+        return []
+
+    resposta = (
+        integracao.table("pagamento")
+        .select("*")
+        .in_("reserva", numeros)
+        .execute()
+    )
+    return resposta.data
+
+
 # ============================================================
 #                      FLUXO PRINCIPAL
 # ============================================================
@@ -212,11 +256,7 @@ def _pedir_data(mensagem: str):
 
 def iniciar_reserva(hospede):
     # -- 1. Buscar hotel (nome ou endereço, num campo só)
-    termo = input(
-        "\n========================================\n"
-        "    Buscar hotel (nome ou endereço):\n"
-        "========================================\n"
-    )
+    termo = input("Buscar hotel (nome ou endereço): ")
 
     hoteis = buscar_hotel(termo)
 
@@ -228,14 +268,17 @@ def iniciar_reserva(hospede):
         questionary.Choice(title=f"{h['nome']} - {h['endereco']}", value=h)
         for h in hoteis
     ]
-    opcoes.append(questionary.Choice(title="Cancelar", value=None))
+    # value=False (não None!) — questionary trata None como "usar o título
+    # como valor", então None faria hotel_escolhido virar a string "Cancelar"
+    opcoes.append(questionary.Choice(title="Cancelar", value=False))
 
     hotel_escolhido = questionary.select(
         "Escolha o hotel:",
         choices=opcoes,
+        instruction="(use as setas do teclado e Enter para confirmar)",
     ).ask()
 
-    if hotel_escolhido is None:
+    if not hotel_escolhido:
         print("Reserva cancelada.")
         return
 
@@ -316,3 +359,82 @@ def iniciar_reserva(hospede):
     print(f"Número da reserva: {reserva['numero']}")
     print(f"Valor total: R$ {valor_total}")
     print(f"Pagamento registrado: {pagamento['id_pagamento']} ({formato})")
+
+
+def consultar_reservas(hospede):
+    reservas = buscar_reservas_do_hospede(hospede["id_hospede"])
+    reservas_ativas = [r for r in reservas if r["status"]]
+
+    if not reservas_ativas:
+        print("Você não tem nenhuma reserva ativa no momento.")
+        return
+
+    opcoes = []
+    for r in reservas_ativas:
+        hotel_nome = r["quarto"]["tipo_quarto"]["hotel"]["nome"]
+        tipo_nome = r["quarto"]["tipo_quarto"]["nome_tipo"]
+        numero_quarto = r["quarto"]["numero"]
+        texto = (
+            f"#{r['numero']} - {hotel_nome} - Quarto {numero_quarto} ({tipo_nome}) - "
+            f"{r['checkin']} a {r['checkout']} - R$ {r['valor_total']}"
+        )
+        opcoes.append(questionary.Choice(title=texto, value=r["numero"]))
+
+    # value=False pelo mesmo motivo do hotel: evitar o fallback do questionary
+    opcoes.append(questionary.Choice(title="Voltar", value=False))
+
+    escolha = questionary.select(
+        "Suas reservas (selecione uma pra cancelar, ou volte):",
+        choices=opcoes,
+        instruction="(use as setas do teclado e Enter para confirmar)",
+    ).ask()
+
+    if not escolha:
+        return
+
+    confirmar = input("Tem certeza que deseja cancelar essa reserva? (S/N): ").strip().upper()
+    if confirmar == "S":
+        cancelar_reserva(escolha)
+        print("Reserva cancelada com sucesso.")
+    else:
+        print("Nenhuma alteração feita.")
+
+
+def consultar_pagamentos(hospede):
+    pagamentos = buscar_pagamentos_do_hospede(hospede["id_hospede"])
+
+    if not pagamentos:
+        print("Nenhum pagamento encontrado.")
+        return
+
+    print("-" * 40)
+    print("Extrato de pagamentos")
+    print("-" * 40)
+    for p in pagamentos:
+        print(f"Reserva #{p['reserva']} - R$ {p['valor_total']} - {p['formato']} - status: {p['status']}")
+    print("-" * 40)
+
+
+def menu_reservas(hospede):
+    while True:
+        opcao = questionary.select(
+            f"Olá, {hospede['nome']}! O que deseja fazer?",
+            choices=[
+                questionary.Choice(title="Nova reserva", value="nova"),
+                questionary.Choice(title="Minhas reservas", value="minhas"),
+                questionary.Choice(title="Extrato de pagamento", value="extrato"),
+                questionary.Choice(title="Sair", value="sair"),
+            ],
+            instruction="(use as setas do teclado e Enter para confirmar)",
+        ).ask()
+
+        if opcao is None or opcao == "sair":
+            print("Até a próxima!")
+            return
+
+        if opcao == "nova":
+            iniciar_reserva(hospede)
+        elif opcao == "minhas":
+            consultar_reservas(hospede)
+        elif opcao == "extrato":
+            consultar_pagamentos(hospede)

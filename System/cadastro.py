@@ -1,13 +1,21 @@
 from System.validadores import isCpfValid, isCnpjValid, isDdnValid, isEmailValid, isTelValid, hash_senha, IsSenhaValid
 from System.integracao import integracao
+import questionary
 
 
 def cadastrar_usuario():
-    while True:
-        tipo_pessoa = input("Cadastro para Pessoa Física ou Jurídica? (PF/PJ): ").strip().upper()
-        if tipo_pessoa in ("PF", "PJ"):
-            break
-        print("Opção inválida, digite PF ou PJ.")
+    tipo_pessoa = questionary.select(
+        "Cadastro para qual tipo de cliente?",
+        choices=[
+            questionary.Choice(title="Pessoa Física (PF)", value="PF"),
+            questionary.Choice(title="Pessoa Jurídica (PJ)", value="PJ"),
+        ],
+        instruction="(use as setas do teclado e Enter para confirmar)",
+    ).ask()
+
+    if tipo_pessoa is None:
+        print("Cadastro cancelado.")
+        return None
 
     if tipo_pessoa == "PF":
         return cadastrar_pf()
@@ -113,8 +121,6 @@ def _pedir_senha():
             return senha
         print("Sua senha é muito curta, tente novamente.")
 
-# ---- Tradução/análise de erro para o usúario (cliente) -> 
-# código atualizado com auxilio de IA 
 
 def _traduzir_erro(e) -> str:
     detalhe = str(e)
