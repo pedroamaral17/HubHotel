@@ -1,4 +1,4 @@
-from System.validadores import isCpfValid, isCnpjValid, isDdnValid, isEmailValid, isTelValid, hash_senha, IsSenhaValid
+from System.validadores import isCpfValid, isCnpjValid, isDdnValid, isEmailValid, isTelValid, hash_senha, IsSenhaValid, converterParaBanco
 from System.integracao import integracao
 import questionary
 
@@ -39,11 +39,14 @@ def cadastrar_pf():
             print("CPF inválido, tente novamente.")
 
     while True:
-        ddn = input("Digite sua data de nascimento(aaaa-mm-dd): ").strip()
+        ddn = input("Digite sua data de nascimento(dd/mm/aaaa): ").strip()
         if isDdnValid(ddn):
             break
         else:
             print("Erro, tente novamente!")
+
+
+    ddn_formatada = converterParaBanco(ddn)
 
     email = _pedir_email()
     telefone = _pedir_telefone()
@@ -54,7 +57,7 @@ def cadastrar_pf():
         "cpf": cpf,
         "cnpj": None,
         "tipo_pessoa": "PF",
-        "data_nascimento": ddn,
+        "data_nascimento": ddn_formatada,
         "email": email,
         "fone": telefone,
         "senha_hash": hash_senha(senha),
@@ -116,7 +119,7 @@ def _pedir_telefone():
 
 def _pedir_senha():
     while True:
-        senha = input("Digite sua senha(mínimo 8 caracteres): ").strip()
+        senha = questionary.password("Digite sua senha(mínimo 8 caracteres):").ask()
         if IsSenhaValid(senha):
             return senha
         print("Sua senha é muito curta, tente novamente.")

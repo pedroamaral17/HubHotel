@@ -11,7 +11,7 @@ def login():
     while True:
         print("\n=== LOGIN ===")
         email = input("Email: ").strip()
-        senha = input("Senha: ").strip()
+        senha = questionary.password("Senha: ").ask()
 
         usuario = _autenticar(email, senha)
 
@@ -31,7 +31,7 @@ def login():
             instruction="(use as setas do teclado e Enter para confirmar)",
         ).ask()
 
-        if opcao != "retry":
+        if opcao != "Retry":
             return None
 
 

@@ -74,14 +74,33 @@ def isCnpjValid(cnpj):
     return cnpj_limpo[-2:] == "%s%s" % (primeiro_digito, segundo_digito)
 
 
+from datetime import datetime
+
 def isDdnValid(ddn):
     if ddn == "":
         return False
     try:
-        datetime.strptime(ddn, "%Y-%m-%d")
-        return True
+        data_nasc = datetime.strptime(ddn, "%d/%m/%Y")
     except ValueError:
         return False
+
+    hoje = datetime.today()
+
+    if data_nasc > hoje:
+        return False
+
+    idade = hoje.year - data_nasc.year
+    if (hoje.month, hoje.day) < (data_nasc.month, data_nasc.day):
+        idade -= 1
+
+    if idade < 18 or idade > 120:
+        return False
+
+    return True
+
+def converterParaBanco(ddn_usuario):
+    data = datetime.strptime(ddn_usuario, "%d/%m/%Y")
+    return data.strftime("%Y-%m-%d")
 
 
 def isEmailValid(email):
