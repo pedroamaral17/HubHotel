@@ -153,13 +153,14 @@ def criar_reserva(id_hospede: int, id_quarto: int, checkin: str, checkout: str, 
     return resposta.data[0]
 
 
-def criar_pagamento(numero_reserva: int, valor_total: float, formato: str):
+def criar_pagamento(numero_reserva: int, valor_total: float, formato: str, parcelas: int = 1):
     resposta = (
         integracao.table("pagamento")
         .insert({
             "reserva": numero_reserva,
             "valor_total": valor_total,
             "formato": formato,
+            "parcelas": parcelas,
             "status": "pendente",
         })
         .execute()
@@ -216,34 +217,25 @@ def buscar_pagamentos_do_hospede(id_hospede: int):
 #                      FLUXO PRINCIPAL
 # ============================================================
 
-def _escolher_da_lista(lista, mensagem):
-    while True:
-        entrada = input(mensagem).strip()
-
-        if entrada == "0":
-            return None
-
-        if not entrada.isdigit():
-            print("Digite um número válido (ou 0 para cancelar).")
-            continue
-
-        indice = int(entrada) - 1
-
-        if indice < 0 or indice >= len(lista):
-            print("Esse número não existe! Escolha um da lista acima (ou 0 para cancelar).")
-            continue
-
-        return lista[indice]
+def formatar_valor(valor: float) -> str:
+    # Formato brasileiro: ponto separando milhar, vírgula separando centavos.
+    # f"{valor:,.2f}" gera o padrão americano (1,234.56) — aqui a gente
+    # troca "," por "." e "." por "," pra inverter pro padrão BR.
+    texto = f"{valor:,.2f}"
+    texto = texto.replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {texto}"
 
 
 def _pedir_data(mensagem: str):
     formatos_aceitos = ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d")
 
     while True:
-        entrada = input(mensagem).strip()
+        entrada = questionary.text(mensagem).ask()
 
-        if entrada == "0":
+        if entrada is None or entrada.strip() == "0":
             return None
+
+        entrada = entrada.strip()
 
         for formato in formatos_aceitos:
             try:
@@ -254,9 +246,47 @@ def _pedir_data(mensagem: str):
         print("Data inválida. Use AAAA-MM-DD ou DD-MM-AAAA (com - ou /), ou 0 para cancelar.")
 
 
+def _pedir_forma_pagamento(valor_total: float):
+    formato = questionary.select(
+        "Forma de pagamento:",
+        choices=[
+            questionary.Choice(title="Pix", value="pix"),
+            questionary.Choice(title="Cartão de Débito", value="debito"),
+            questionary.Choice(title="Cartão de Crédito", value="credito"),
+            questionary.Choice(title="Dinheiro", value="dinheiro"),
+            questionary.Choice(title="Cancelar", value=False),
+        ],
+        instruction="(use as setas do teclado e Enter para confirmar)",
+    ).ask()
+
+    if not formato:
+        return None, None
+
+    parcelas = 1
+    if formato == "credito":
+        opcoes_parcelas = [
+            questionary.Choice(title=f"{n}x de {formatar_valor(valor_total / n)}", value=n)
+            for n in range(1, 13)
+        ]
+        parcelas = questionary.select(
+            "Em quantas parcelas?",
+            choices=opcoes_parcelas,
+            instruction="(use as setas do teclado e Enter para confirmar)",
+        ).ask()
+
+        if parcelas is None:
+            return None, None
+
+    return formato, parcelas
+
+
 def iniciar_reserva(hospede):
     # -- 1. Buscar hotel (nome ou endereço, num campo só)
-    termo = input("Buscar hotel (nome ou endereço): ")
+    termo = questionary.text("Buscar hotel (nome ou endereço):").ask()
+
+    if termo is None:
+        print("Reserva cancelada.")
+        return
 
     hoteis = buscar_hotel(termo)
 
@@ -289,24 +319,31 @@ def iniciar_reserva(hospede):
         print("Este hotel não possui tipos de quarto cadastrados.")
         return
 
-    for i, tipo in enumerate(tipos):
+    opcoes_tipo = []
+    for tipo in tipos:
         amenidades = buscar_amenidades_do_tipo(tipo["id_tipo_quarto"])
-        print(f"[{i + 1}] {tipo['nome_tipo']} - R$ {tipo['preco_diaria']}/diária")
-        print(f"    Amenidades: {', '.join(amenidades) if amenidades else 'nenhuma'}")
-    print("[0] Cancelar")
+        lista_amenidades = ", ".join(amenidades) if amenidades else "nenhuma"
+        titulo = f"{tipo['nome_tipo']} - {formatar_valor(tipo['preco_diaria'])}/diária - Amenidades: {lista_amenidades}"
+        opcoes_tipo.append(questionary.Choice(title=titulo, value=tipo))
+    opcoes_tipo.append(questionary.Choice(title="Cancelar", value=False))
 
-    tipo_escolhido = _escolher_da_lista(tipos, "Escolha o tipo de quarto (número da lista): ")
-    if tipo_escolhido is None:
+    tipo_escolhido = questionary.select(
+        "Escolha o tipo de quarto:",
+        choices=opcoes_tipo,
+        instruction="(use as setas do teclado e Enter para confirmar)",
+    ).ask()
+
+    if not tipo_escolhido:
         print("Reserva cancelada.")
         return
 
     # -- 4. Datas primeiro, pra já filtrar quartos livres nesse período
-    checkin = _pedir_data("Data de check-in (AAAA-MM-DD ou DD-MM-AAAA, ou 0 p/ cancelar): ")
+    checkin = _pedir_data("Data de check-in (AAAA-MM-DD ou DD-MM-AAAA, ou 0 p/ cancelar):")
     if checkin is None:
         print("Reserva cancelada.")
         return
 
-    checkout = _pedir_data("Data de check-out (AAAA-MM-DD ou DD-MM-AAAA, ou 0 p/ cancelar): ")
+    checkout = _pedir_data("Data de check-out (AAAA-MM-DD ou DD-MM-AAAA, ou 0 p/ cancelar):")
     if checkout is None:
         print("Reserva cancelada.")
         return
@@ -325,20 +362,34 @@ def iniciar_reserva(hospede):
         print("Não há quartos disponíveis para este tipo, nesse período.")
         return
 
-    for i, quarto in enumerate(quartos):
-        print(f"[{i + 1}] Quarto {quarto['numero']}")
-    print("[0] Cancelar")
+    opcoes_quarto = [
+        questionary.Choice(title=f"Quarto {quarto['numero']}", value=quarto)
+        for quarto in quartos
+    ]
+    opcoes_quarto.append(questionary.Choice(title="Cancelar", value=False))
 
-    quarto_escolhido = _escolher_da_lista(quartos, "Escolha o quarto (número da lista): ")
-    if quarto_escolhido is None:
+    quarto_escolhido = questionary.select(
+        "Escolha o quarto:",
+        choices=opcoes_quarto,
+        instruction="(use as setas do teclado e Enter para confirmar)",
+    ).ask()
+
+    if not quarto_escolhido:
         print("Reserva cancelada.")
         return
 
     diarias = (checkout - checkin).days
     valor_total = diarias * float(tipo_escolhido["preco_diaria"])
 
-    resposta_final = input(f"Confirmar reserva? Valor total: R$ {valor_total} (S/N): ").strip().upper()
-    if resposta_final != "S":
+    confirmar = questionary.select(
+        f"Confirmar reserva? Valor total: {formatar_valor(valor_total)}",
+        choices=[
+            questionary.Choice(title="Sim", value=True),
+            questionary.Choice(title="Não", value=False),
+        ],
+        instruction="(use as setas do teclado e Enter para confirmar)",
+    ).ask()
+    if not confirmar:
         print("Reserva cancelada.")
         return
 
@@ -351,14 +402,21 @@ def iniciar_reserva(hospede):
     )
 
     # -- 6. Pagamento
-    formato = input("Forma de pagamento (pix, cartao, dinheiro): ")
-    pagamento = criar_pagamento(reserva["numero"], valor_total, formato)
+    formato, parcelas = _pedir_forma_pagamento(valor_total)
+    if formato is None:
+        print("Reserva criada, mas o pagamento foi cancelado. Finalize o pagamento depois pelo menu.")
+        return
+
+    pagamento = criar_pagamento(reserva["numero"], valor_total, formato, parcelas)
 
     print("-" * 30)
     print("Reserva realizada com sucesso!")
     print(f"Número da reserva: {reserva['numero']}")
-    print(f"Valor total: R$ {valor_total}")
-    print(f"Pagamento registrado: {pagamento['id_pagamento']} ({formato})")
+    print(f"Valor total: {formatar_valor(valor_total)}")
+    if formato == "credito" and parcelas > 1:
+        print(f"Pagamento registrado: {pagamento['id_pagamento']} ({formato}, {parcelas}x de {formatar_valor(valor_total / parcelas)})")
+    else:
+        print(f"Pagamento registrado: {pagamento['id_pagamento']} ({formato})")
 
 
 def consultar_reservas(hospede):
@@ -376,7 +434,7 @@ def consultar_reservas(hospede):
         numero_quarto = r["quarto"]["numero"]
         texto = (
             f"#{r['numero']} - {hotel_nome} - Quarto {numero_quarto} ({tipo_nome}) - "
-            f"{r['checkin']} a {r['checkout']} - R$ {r['valor_total']}"
+            f"{r['checkin']} a {r['checkout']} - {formatar_valor(r['valor_total'])}"
         )
         opcoes.append(questionary.Choice(title=texto, value=r["numero"]))
 
@@ -392,8 +450,15 @@ def consultar_reservas(hospede):
     if not escolha:
         return
 
-    confirmar = input("Tem certeza que deseja cancelar essa reserva? (S/N): ").strip().upper()
-    if confirmar == "S":
+    confirmar = questionary.select(
+        "Tem certeza que deseja cancelar essa reserva?",
+        choices=[
+            questionary.Choice(title="Sim", value=True),
+            questionary.Choice(title="Não", value=False),
+        ],
+        instruction="(use as setas do teclado e Enter para confirmar)",
+    ).ask()
+    if confirmar:
         cancelar_reserva(escolha)
         print("Reserva cancelada com sucesso.")
     else:
@@ -411,7 +476,9 @@ def consultar_pagamentos(hospede):
     print("Extrato de pagamentos")
     print("-" * 40)
     for p in pagamentos:
-        print(f"Reserva #{p['reserva']} - R$ {p['valor_total']} - {p['formato']} - status: {p['status']}")
+        parcelas = p.get("parcelas", 1)
+        detalhe_parcelas = f" ({parcelas}x)" if p["formato"] == "credito" and parcelas > 1 else ""
+        print(f"Reserva #{p['reserva']} - {formatar_valor(p['valor_total'])} - {p['formato']}{detalhe_parcelas} - status: {p['status']}")
     print("-" * 40)
 
 
